@@ -5,11 +5,32 @@ from langchain.embeddings import CacheBackedEmbeddings, OpenAIEmbeddings
 from langchain.storage import LocalFileStore
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
-
+from langchain.prompts import ChatPromptTemplate
+from langchain.chat_models import ChatOpenAI
+from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
+from langchain.callbacks.base import BaseCallbackHandler
 
 st.set_page_config(
     page_title="DocumentGPT",
     page_icon="📃",
+)
+
+class ChatCallbackHandler(BaseCallbackHandler):
+    message = ""
+    def on_llm_start(self, *args, **kwargs):
+        self.message_box = st.empty()
+
+    def on_llm_end(self, *args, **kwargs):
+        save_message(self.message, "ai")
+
+    def on_llm_new_token(self, token, *args, **kwargs):
+        self.message = f"{self.message}{token}"
+        self.message_box.markdown(self.message + "▌")
+
+llm = ChatOpenAI(
+    temperature=0.1,
+    streaming=True,
+    callbacks=[ChatCallbackHandler()],
 )
 
 if "messages" not in st.session_state:
@@ -37,16 +58,38 @@ def embed_file(file):
     retriever = vectorstore.as_retriever()
     return retriever
 
+def save_message(message, role):
+    st.session_state["messages"].append({"message": message, "role": role})
+
+
 def send_message(message, role, save=True):
     with st.chat_message(role):
         st.markdown(message)
     if save:
-        st.session_state["messages"].append({"role": role, "message": message})
+        save_message(message, role)
 
 
 def paint_history():
     for chat in st.session_state["messages"]:
         send_message(chat["message"], chat["role"], save=False)
+
+def format_docs(docs):
+    return "\n\n".join(document.page_content for document in docs)
+
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+            Answer the question using ONLY the following context. If you don't know the answer just say you don't know. DON'T make anything up.
+            
+            Context: {context}
+            """,
+        ),
+        ("human", "{question}"),
+    ]
+)
+
 
 st.title("DocumentGPT")
 
@@ -73,6 +116,15 @@ if file:
     
     if message:
         send_message(message, "human")
-
-        
-    
+        chain = (
+            {
+                "context": retriever | RunnableLambda(format_docs),
+                "question": RunnablePassthrough(),
+            }
+            | prompt
+            | llm
+        )
+        with st.chat_message("ai"):
+            response = chain.invoke(message)
+    else:
+        st.session_state["messages"] = []
