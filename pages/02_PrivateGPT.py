@@ -30,8 +30,9 @@ class ChatCallbackHandler(BaseCallbackHandler):
 
 
 llm = ChatOllama(
-    #Model="mistral:latest",
-    Model="tinyllama:latest",
+    # Model="mistral:latest",
+    Model="deepseek-r1:8b",
+    base_url="http://192.168.20.102:11434",
     temperature=0.1,
     streaming=True,
     callbacks=[
@@ -54,9 +55,14 @@ def embed_file(file):
     )
     loader = UnstructuredFileLoader(file_path)
     docs = loader.load_and_split(text_splitter=splitter)
-    #embeddings = OllamaEmbeddings(model="mistral:latest")
-    embeddings = OllamaEmbeddings(model="tinyllama:latest")
-    cached_embeddings = CacheBackedEmbeddings.from_bytes_store(embeddings, cache_dir)
+    # embeddings = OllamaEmbeddings(model="mistral:latest")
+    embeddings = OllamaEmbeddings(
+        model="deepseek-r1:8b",
+        base_url="http://192.168.20.102:11434",
+    )
+    cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
+        embeddings, cache_dir
+    )
     vectorstore = FAISS.from_documents(docs, cached_embeddings)
     retriever = vectorstore.as_retriever()
     return retriever
@@ -87,7 +93,7 @@ def format_docs(docs):
 
 
 prompt = ChatPromptTemplate.from_template(
-    """Answer the question using ONLY the following context and not your training data. If you don't know the answer just say you don't know. DON'T make anything up.
+    """Answer the question using ONLY the following context and not your training data. If you don't know the answer just say you don't know. DON'T make anything up.plase relpy korean
     
     Context: {context}
     Question:{question}
