@@ -119,11 +119,12 @@ st.markdown(
     """
 Welcome!
             
+먼저 가지고 있는 자신의 OPENAI_API_KEY 를 입력하고
+
 사이드바에서 파일을 업로드하세요.
 
 이 챗봇을 사용해 파일 관련 질문을 AI에게 물어보세요!
 
-단 , OPENAI_API_KEY 가 필요합니다.
 """
 )
 
@@ -196,25 +197,25 @@ if apiKey:
             "question": RunnablePassthrough(),
         } | RunnableLambda(map_docs)
 
-        message = st.chat_input("Ask anything about your file...")
+        message = st.chat_input("질문해주세요!")
         if message:
             send_message(message, "human")
-            chain = (
-                {
-                    "context": map_chain,  # map_chain이 문맥 추출을 담당
-                    "question": RunnablePassthrough(),  # 질문 그대로 전달
-                }
-                | final_prompt
-                | llm
-            )
             # chain = (
             #     {
-            #         "context": retriever | RunnableLambda(format_docs),
-            #         "question": RunnablePassthrough(),
+            #         "context": map_chain,  # map_chain이 문맥 추출을 담당
+            #         "question": RunnablePassthrough(),  # 질문 그대로 전달
             #     }
             #     | final_prompt
             #     | llm
             # )
+            chain = (
+                {
+                    "context": retriever | RunnableLambda(format_docs),
+                    "question": RunnablePassthrough(),
+                }
+                | final_prompt
+                | llm
+            )
             with st.chat_message("ai"):
                 response = chain.invoke(message)
     else:
