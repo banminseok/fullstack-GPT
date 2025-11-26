@@ -1,7 +1,8 @@
 env/
 .env
-files/
-.cache/
+xfiles/
+x.cache/
 .streamlit
 temp_rag.py
 .backup/
+.backup
